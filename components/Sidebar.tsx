@@ -38,7 +38,7 @@ export function Sidebar({
           </Link>
         </li>
 
-        <li>
+        {/* <li>
           <Link href="/admin/Customer" className="w-full block">
             <button
               className={`w-full text-left p-2 rounded flex items-center ${
@@ -51,7 +51,7 @@ export function Sidebar({
               Customer
             </button>
           </Link>
-        </li>
+        </li> */}
 
         <li>
           <Link href="/admin/Product" className="w-full block">

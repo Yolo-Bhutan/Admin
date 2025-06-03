@@ -1,28 +1,56 @@
+import React, { useEffect, useState } from "react";
 import {
   Bell,
   User,
   Search,
   ShoppingCartIcon,
   ClipboardListIcon,
-  CatIcon,
 } from "lucide-react";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   Tooltip,
   ResponsiveContainer,
+  CartesianGrid,
 } from "recharts";
 
-const data = [
-  { name: "Week 1", lastMonth: 25000, thisMonth: 37590 },
-  { name: "Week 2", lastMonth: 22000, thisMonth: 34210 },
-  { name: "Week 3", lastMonth: 28000, thisMonth: 39000 },
-  { name: "Week 4", lastMonth: 26000, thisMonth: 37000 },
-];
-
 export function DashboardContent() {
+  const [productCount, setProductCount] = useState(0);
+  const [customerCount, setCustomerCount] = useState(0);
+  const [orderCount, setOrderCount] = useState(0);
+
+  useEffect(() => {
+    const fetchCounts = async () => {
+      try {
+        const [productsRes, customersRes, ordersRes] = await Promise.all([
+          fetch("http://localhost:8765/PRODUCT-SERVICE/api/products"),
+          fetch("http://localhost:8765/USER-SERVICE/api/users/all"),
+          fetch("http://localhost:8765/ORDER-SERVICE/api/orders/all"),
+        ]);
+
+        const products = await productsRes.json();
+        const customers = await customersRes.json();
+        const orders = await ordersRes.json();
+
+        setProductCount(products.length);
+        setCustomerCount(customers.length);
+        setOrderCount(orders.length);
+      } catch (error) {
+        console.error("Error fetching counts:", error);
+      }
+    };
+
+    fetchCounts();
+  }, []);
+
+  const chartData = [
+    { name: "Customers", count: customerCount },
+    { name: "Products", count: productCount },
+    { name: "Orders", count: orderCount },
+  ];
+
   return (
     <div className="p-6">
       <div className="flex justify-between items-center mb-4">
@@ -44,59 +72,48 @@ export function DashboardContent() {
       <h1 className="text-2xl font-bold">Welcome to the Dashboard</h1>
 
       <div className="bg-grey w-294 h-50 flex flex-wrap justify-center items-center gap-15 p-4 mt-6 rounded-lg border border-gray-400">
-        <div className="bg-white w-55 h-28 rounded-lg">
+        {/* Customer Card */}
+        <div className="bg-white w-55 h-28 rounded-lg p-4">
           <div className="flex justify-between items-center">
-            <span className="text-black font-medium mt-2 p-2">Customer</span>
-            <User className="text-black pr-3 mt-3" size={30} />
+            <span className="text-black font-medium">Customer</span>
+            <User className="text-black" size={30} />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-black">+172</h2>
-            <p className="text-green-600 text-sm">+22% from last month</p>
-          </div>
+          <h2 className="text-2xl font-bold text-black">+{customerCount}</h2>
+          <p className="text-green-600 text-sm">Total registered users</p>
         </div>
 
-        <div className="bg-white w-55 h-28 rounded-lg">
+        {/* Product Card */}
+        <div className="bg-white w-55 h-28 rounded-lg p-4">
           <div className="flex justify-between items-center">
-            <span className="text-black font-medium mt-2 p-2">Product</span>
-            <ShoppingCartIcon className="text-black pr-3 mt-3" size={30} />
+            <span className="text-black font-medium">Product</span>
+            <ShoppingCartIcon className="text-black" size={30} />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-black">+77</h2>
-            <p className="text-green-600 text-sm">+10% from last month</p>
-          </div>
+          <h2 className="text-2xl font-bold text-black">+{productCount}</h2>
+          <p className="text-green-600 text-sm">Total products available</p>
         </div>
-        <div className="bg-white w-55 h-28 rounded-lg">
+
+        {/* Order Card */}
+        <div className="bg-white w-55 h-28 rounded-lg p-4">
           <div className="flex justify-between items-center">
-            <span className="text-black font-medium mt-2 p-2">Order</span>
-            <ClipboardListIcon className="text-black pr-3 mt-3" size={30} />
+            <span className="text-black font-medium">Order</span>
+            <ClipboardListIcon className="text-black" size={30} />
           </div>
-          <div>
-            <h2 className="text-2xl font-bold text-black">+88</h2>
-            <p className="text-green-600 text-sm">+32% from last month</p>
-          </div>
-        </div>
-        <div className="bg-white w-55 h-28 rounded-lg">
-          <div className="flex justify-between items-center">
-            <span className="text-black font-medium mt-2 p-2">Feedback</span>
-            <CatIcon className="text-black pr-3 mt-3" size={30} />
-          </div>
-          <div>
-            <h2 className="text-2xl font-bold text-black">+102</h2>
-            <p className="text-green-600 text-sm">+21% from last month</p>
-          </div>
+          <h2 className="text-2xl font-bold text-black">+{orderCount}</h2>
+          <p className="text-green-600 text-sm">Total placed orders</p>
         </div>
       </div>
 
-      <div className="mt-10 bg-white p-4 rounded-lg">
-        <h3 className="text-lg font-semibold mb-2">Customer Fulfillment</h3>
-        <ResponsiveContainer width="100%" height={200}>
-          <LineChart data={data}>
+      {/* Bar Chart */}
+      <div className="mt-10 bg-white p-4 rounded-lg border border-gray-300">
+        <h3 className="text-lg font-semibold mb-2">Platform Statistics</h3>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={chartData}>
+            <CartesianGrid strokeDasharray="3 3" />
             <XAxis dataKey="name" />
-            <YAxis />
+            <YAxis allowDecimals={false} />
             <Tooltip />
-            <Line type="monotone" dataKey="lastMonth" stroke="#8884d8" />
-            <Line type="monotone" dataKey="thisMonth" stroke="#82ca9d" />
-          </LineChart>
+            <Bar dataKey="count" fill="#4f46e5" barSize={40} />
+          </BarChart>
         </ResponsiveContainer>
       </div>
     </div>

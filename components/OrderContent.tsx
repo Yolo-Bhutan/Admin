@@ -1,44 +1,108 @@
-import { Bell, Search, User, ChevronLeft, ChevronRight } from "lucide-react";
-import { useState } from "react";
+import {
+  Bell,
+  Search,
+  User,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 
-const initialOrders = [
-  { id: 1, status: "Placed" },
-  { id: 2, status: "Delivered" },
-  { id: 3, status: "Confirmed" },
-  { id: 4, status: "Pending" },
-  { id: 5, status: "Placed" },
-  { id: 6, status: "Delivered" },
-  { id: 7, status: "Placed" },
-  { id: 8, status: "Delivered" },
-  { id: 9, status: "Confirmed" },
-  { id: 10, status: "Pending" },
-  { id: 11, status: "Placed" },
-  { id: 12, status: "Delivered" },
-];
-
-const statusColors = {
-  Placed: "bg-pink-500",
-  Delivered: "bg-green-500",
-  Confirmed: "bg-blue-500",
-  Pending: "bg-cyan-500",
+type Order = {
+  orderId: number;
+  title: string;
+  price: number;
+  productId: number;
+  status: "PLACED" | "DELIVERED" | "PENDING";
 };
 
+type Product = {
+  id: number;
+  name: string;
+  price: number;
+};
+
+const statusColors: Record<Order["status"], string> = {
+  PLACED: "bg-pink-500",
+  DELIVERED: "bg-green-500",
+  PENDING: "bg-cyan-500",
+};
+
+const statusOptions = [
+  { label: "Placed", value: "PLACED" },
+  { label: "Delivered", value: "DELIVERED" },
+  { label: "Pending", value: "PENDING" },
+];
+
 export function OrderContent() {
-  const [orders, setOrders] = useState(initialOrders);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [sortStatus, setSortStatus] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
 
-  const handleDelete = (id) => {
-    const updatedOrders = orders.filter((order) => order.id !== id);
-    setOrders(updatedOrders);
+  useEffect(() => {
+    fetch("http://localhost:8765/PRODUCT-SERVICE/api/products")
+      .then((res) => res.json())
+      .then((productsData) => {
+        console.log("Fetched products:", productsData);
+        if (Array.isArray(productsData)) {
+          setProducts(productsData);
+        } else {
+          console.error("Products response is not an array", productsData);
+        }
+        return fetch("http://localhost:8765/ORDER-SERVICE/api/orders/all");
+      })
+      .then((res) => res.json())
+      .then((ordersData) => {
+        console.log("Fetched orders:", ordersData);
+        if (Array.isArray(ordersData)) {
+          setOrders(ordersData);
+        } else {
+          console.error("Orders response is not an array", ordersData);
+        }
+      })
+      .catch((err) => console.error("Fetch error:", err));
+  }, []);
+
+  const handleDelete = (orderId: number) => {
+    fetch(`http://localhost:8765/ORDER-SERVICE/api/orders/${orderId}`, {
+      method: "DELETE",
+    })
+      .then((res) => {
+        if (res.ok) {
+          setOrders((prev) => prev.filter((order) => order.orderId !== orderId));
+        } else {
+          console.error("Failed to delete order:", res.status);
+        }
+      })
+      .catch((err) => console.error("Delete error:", err));
   };
 
-  const handleStatusUpdate = (id, newStatus) => {
-    const updatedOrders = orders.map((order) =>
-      order.id === id ? { ...order, status: newStatus } : order
-    );
-    setOrders(updatedOrders);
+  const handleStatusUpdate = (orderId: number, newStatus: Order["status"]) => {
+    const orderToUpdate = orders.find((order) => order.orderId === orderId);
+    if (!orderToUpdate) return;
+
+    const updatedOrder = { ...orderToUpdate, status: newStatus };
+
+    fetch(`http://localhost:8765/ORDER-SERVICE/api/orders/${orderId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(updatedOrder),
+    })
+      .then((res) => {
+        if (res.ok) {
+          setOrders((prev) =>
+            prev.map((order) =>
+              order.orderId === orderId ? { ...order, status: newStatus } : order
+            )
+          );
+        } else {
+          console.error("Failed to update status:", res.status);
+        }
+      })
+      .catch((err) => console.error("Update error:", err));
+
+    console.log("Updating status for Order ID:", orderId, "to", newStatus);
   };
 
   const filteredOrders = sortStatus
@@ -64,7 +128,6 @@ export function OrderContent() {
               className="w-full p-2 outline-none"
             />
           </div>
-
           <div className="flex items-center space-x-5">
             <Bell className="text-gray-600 cursor-pointer" size={24} />
             <User className="text-gray-600 cursor-pointer" size={24} />
@@ -77,11 +140,12 @@ export function OrderContent() {
             onChange={(e) => setSortStatus(e.target.value)}
             className="bg-black text-white border border-white p-2 rounded w-60"
           >
-            <option value="">Status</option>
-            <option value="Placed">Placed</option>
-            <option value="Delivered">Delivered</option>
-            <option value="Confirmed">Confirmed</option>
-            <option value="Pending">Pending</option>
+            <option key="all" value="">Status</option>
+            {statusOptions.map(({ label, value }) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
           </select>
         </div>
 
@@ -90,58 +154,66 @@ export function OrderContent() {
             <thead>
               <tr className="border-b border-gray-700">
                 <th className="p-4">User</th>
-                <th>Title</th>
-                <th>Price</th>
-                <th>ID</th>
+                <th>Product Title</th>
+                <th>Product Price</th>
                 <th>Status</th>
                 <th>Update</th>
                 <th>Delete</th>
               </tr>
             </thead>
             <tbody>
-              {paginatedOrders.map((order) => (
-                <tr key={order.id} className="border-b border-gray-800 h-16">
-                  <td className="p-4">
-                    <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
-                      👤
-                    </div>
-                  </td>
-                  <td className="whitespace-nowrap">
-                    Unisex Jacket made in Bhutan
-                  </td>
-                  <td className="whitespace-nowrap">4700</td>
-                  <td className="whitespace-nowrap">{order.id}</td>
-                  <td>
-                    <span
-                      className={`px-3 py-1 text-sm rounded-full text-white ${
-                        statusColors[order.status]
-                      }`}
+              {paginatedOrders.map((order) => {
+                const product = products.find(
+                  (p) => String(p.id) === String(order.productId)
+                );
+
+                return (
+                  <tr key={order.orderId} className="border-b border-gray-800 h-16">
+                    <td className="p-4">
+                      <div className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center">
+                        👤
+                      </div>
+                    </td>
+                    <td className="whitespace-nowrap">
+                      {product?.name || "Loading..."}
+                    </td>
+                    <td className="whitespace-nowrap">
+                      {product?.price ?? "N/A"}
+                    </td>
+                    <td>
+                      <span
+                        className={`px-3 py-1 text-sm rounded-full text-white ${statusColors[order.status]}`}
+                      >
+                        {statusOptions.find((s) => s.value === order.status)?.label}
+                      </span>
+                    </td>
+                    <td>
+                      <select
+                        value={order.status}
+                        onChange={(e) =>
+                          handleStatusUpdate(
+                            order.orderId,
+                            e.target.value as Order["status"]
+                          )
+                        }
+                        className="bg-black border border-white text-white rounded p-1"
+                      >
+                        {statusOptions.map(({ label, value }) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td
+                      className="text-pink-400 cursor-pointer"
+                      onClick={() => handleDelete(order.orderId)}
                     >
-                      {order.status}
-                    </span>
-                  </td>
-                  <td>
-                    <select
-                      value={order.status}
-                      onChange={(e) =>
-                        handleStatusUpdate(order.id, e.target.value)
-                      }
-                      className="bg-black border border-white text-white rounded p-1"
-                    >
-                      <option value="Placed">Placed</option>
-                      <option value="Delivered">Delivered</option>
-                      <option value="Confirmed">Confirmed</option>
-                      <option value="Pending">Pending</option>
-                    </select>
-                  </td>
-                  <td
-                    className="text-pink-400 cursor-pointer"
-                    onClick={() => handleDelete(order.id)}
-                  >
-                    Delete
-                  </td>
-                </tr>
-              ))}
+                      Delete
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -151,12 +223,10 @@ export function OrderContent() {
             </button>
             {[...Array(totalPages)].map((_, i) => (
               <button
-                key={i + 1}
+                key={`page-${i + 1}`}
                 onClick={() => setCurrentPage(i + 1)}
                 className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  currentPage === i + 1
-                    ? "bg-purple-500 text-white"
-                    : "text-white"
+                  currentPage === i + 1 ? "bg-purple-500 text-white" : "text-white"
                 }`}
               >
                 {i + 1}
