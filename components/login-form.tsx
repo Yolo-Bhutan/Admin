@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import { useState } from "react";
@@ -7,7 +9,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import {
   Card,
   CardHeader,
@@ -16,14 +18,12 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
-import { toast } from "sonner"; // ✅ Correctly import toast
+import { useRouter } from "next/navigation";
 
 // Define the schema using Zod
 const formSchema = z.object({
   email: z.string().email({ message: "Invalid email address" }),
-  password: z
-    .string()
-    .min(8, { message: "Password must be at least 8 characters long" }),
+  password: z.string().min(8, { message: "Password must be at least 8 characters long" }),
 });
 
 // Define the form data types
@@ -31,6 +31,7 @@ type FormData = z.infer<typeof formSchema>;
 
 export function LoginFormComponent() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const router = useRouter();
   const {
     register,
     handleSubmit,
@@ -39,42 +40,39 @@ export function LoginFormComponent() {
     resolver: zodResolver(formSchema),
   });
 
-  const onSubmit: SubmitHandler<FormData> = async (data) => {
-    setIsLoading(true);
-    try {
-      const loginData = await fetch(
-        `${process.env.NEXT_PUBLIC_BASE_URL}/user/login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(data),
-        }
-      );
 
-      if (loginData.ok) {
-        const response = await loginData.json();
-        localStorage.setItem("token", response.token);
-        console.log("response", response);
-        toast.success("Login successful, Redirecting to dashboard");
-        window.localStorage.setItem("loggedIn", "true");
-        window.localStorage.setItem("userId", response.data.userData._id);
-        window.location.href = "/";
-      } else {
-        console.log("response", await loginData.json());
-        toast.error("Login failed: Invalid email or password");
-        setIsLoading(false);
-      }
-    } catch (error) {
-      console.error("Login Error:", error);
-      toast.error("An unexpected error occurred.");
-      setIsLoading(false);
+  const onSubmit: SubmitHandler<FormData> = async (data) => {
+  setIsLoading(true);
+  try {
+    const response = await fetch("http://localhost:8765/USER-SERVICE/api/users/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: data.email,
+        password: data.password,
+      }),
+    });
+
+    const result = await response.json();
+
+    if (result.accountId) {
+      localStorage.setItem("accountId", result.accountId.toString());
+      toast.success("Login successful!");
+      router.push("/admin/Dashboard");
+    } else {
+      throw new Error("Login failed: No accountId received");
     }
-  };
+  } catch (error: any) {
+    toast.error(error.message || "Something went wrong");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   return (
-    <Card className="w-[350px] h-[350px] p-5">
+    <Card className="w-[350px] h-[380px] p-5">
       <CardHeader className="text-left pl-1">
         <CardTitle>Login</CardTitle>
         <CardDescription>
@@ -103,9 +101,7 @@ export function LoginFormComponent() {
                 {...register("password")}
               />
               {errors.password && (
-                <p className="text-sm text-red-500">
-                  {errors.password.message}
-                </p>
+                <p className="text-sm text-red-500">{errors.password.message}</p>
               )}
             </div>
           </div>
@@ -115,7 +111,7 @@ export function LoginFormComponent() {
           </Button>
           <Link
             href={"/forgotpassword"}
-            className="text-primary hover:underline"
+            className="text-primary hover:underline block mt-2 text-center"
             style={{ fontSize: 12 }}
           >
             Forgot Password?
