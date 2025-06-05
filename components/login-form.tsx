@@ -59,8 +59,9 @@ export function LoginFormComponent() {
 
     if (result.accountId) {
       localStorage.setItem("accountId", result.accountId.toString());
-      toast.success("Login successful!");
-      router.push("/admin/Dashboard");
+  localStorage.setItem("newPassword", data.password); // Store password securely for OTP step
+  toast.success("OTP has been Sent!");;
+       router.push(`/otp?email=${encodeURIComponent(data.email)}`);
     } else {
       throw new Error("Login failed: No accountId received");
     }
@@ -72,7 +73,7 @@ export function LoginFormComponent() {
 };
 
   return (
-    <Card className="w-[350px] h-[380px] p-5">
+    <Card className="w-[350px] h-[300px] p-5">
       <CardHeader className="text-left pl-1">
         <CardTitle>Login</CardTitle>
         <CardDescription>
@@ -109,25 +110,9 @@ export function LoginFormComponent() {
           <Button className="w-full mt-6" type="submit" disabled={isLoading}>
             {isLoading ? "Logging in..." : "Log In"}
           </Button>
-          <Link
-            href={"/forgotpassword"}
-            className="text-primary hover:underline block mt-2 text-center"
-            style={{ fontSize: 12 }}
-          >
-            Forgot Password?
-          </Link>
+
         </form>
       </CardContent>
-      <CardFooter className="flex flex-col">
-        <div className="mt-1 text-sm text-center space-y-2">
-          <span>
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="text-primary hover:underline">
-              Register here
-            </Link>
-          </span>
-        </div>
-      </CardFooter>
     </Card>
   );
 }
